@@ -2,14 +2,13 @@ import asyncio
 from typing import AsyncGenerator
 
 import pytest
-import pytest_asyncio
 from fastapi import FastAPI
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 
+from app.di.containers import DIContainer
 from app.infra.adapters.database import Base
 from app.main import app as fastapi_app
-from app.di.containers import DIContainer
 
 
 @pytest.fixture(scope="session")

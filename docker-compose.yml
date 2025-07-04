@@ -8,10 +8,6 @@ services:
       - "8000:8000"
     volumes:
       - .:/app
-      - .:/app:cached
-      - ./poetry.lock:/app/poetry.lock
-      - ./pyproject.toml:/app/pyproject.toml
-      - ~/.pycharm_helpers:/root/.pycharm_helpers
     environment:
       - POETRY_VIRTUALENVS_CREATE=false
       - ENVIRONMENT=development

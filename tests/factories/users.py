@@ -1,17 +1,19 @@
 from datetime import datetime
-from typing import Any
 
 import factory
-from factory import Factory, Faker
+from factory import Faker
 
 from app.core.users.models import Users
+from tests.factories.base import AsyncSQLAlchemyModelFactory
 
 
-class UserFactory(Factory):
+class UserFactory(AsyncSQLAlchemyModelFactory):
     class Meta:
         model = Users
+        sqlalchemy_session = None
+        sqlalchemy_session_persistence = "flush"
 
-    id = factory.Sequence(lambda n: n)
+    id = factory.Sequence(lambda n: n + 1)
     login = factory.LazyAttribute(lambda obj: f"user_{obj.id}")
     email = factory.LazyAttribute(lambda obj: f"user_{obj.id}@example.com")
     first_name = Faker("first_name")
@@ -19,7 +21,3 @@ class UserFactory(Factory):
     password = Faker("password")
     created_at = factory.LazyFunction(datetime.utcnow)
     updated_at = factory.LazyFunction(datetime.utcnow)
-
-    @classmethod
-    def create_batch_dict(cls, size: int, **kwargs: Any) -> list[dict]:
-        return [vars(cls.build(**kwargs)) for _ in range(size)]

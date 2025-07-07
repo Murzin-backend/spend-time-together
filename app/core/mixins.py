@@ -9,24 +9,8 @@ from app.infra.adapters.database import Database
 
 @dataclass
 class BaseRepository:
+    """
+    Базовый класс для всех репозиториев.
+    Предоставляет доступ к объекту базы данных.
+    """
     db: Database
-
-    @asynccontextmanager
-    async def get_transaction_session(self) -> AsyncGenerator[AsyncSession, None]:
-        async with self.db.session() as session:
-            try:
-                yield session
-            except Exception as error:
-                await session.rollback()
-                raise error
-            else:
-                await session.commit()
-
-    @asynccontextmanager
-    async def session_wrap(self, session: AsyncSession | None) -> AsyncGenerator[AsyncSession, None]:
-        if session is not None:
-            yield session
-        else:
-            async with self.db.session() as wrapped_session:
-                yield wrapped_session
-                await wrapped_session.commit()

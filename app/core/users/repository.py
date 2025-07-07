@@ -10,6 +10,6 @@ from app.core.users.models import Users
 class UserRepository(BaseRepository):
     async def get_users(self) -> list[Users]:
         query = select(Users)
-        async with self.get_transaction_session() as session:
-            result = await session.scalars(query)
-            return list(result.all())
+        async with self.db.session() as session:
+            result = await session.execute(query)
+            return list(result.scalars().all())

@@ -16,15 +16,12 @@ Base = declarative_base()
 class Database:
     def __init__(
         self,
-        host: str,
-        user: str,
-        password: str,
-        database: str,
+        db_url: str,
         echo: bool = False,
         pool_size: int = 5
     ) -> None:
         self._engine: AsyncEngine = create_async_engine(
-            f"mysql+asyncmy://{user}:{password}@{host}/{database}",
+            db_url,
             echo=echo,
             pool_size=pool_size,
             poolclass=AsyncAdaptedQueuePool,

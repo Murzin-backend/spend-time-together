@@ -11,10 +11,7 @@ class RepositoriesContainer(containers.DeclarativeContainer):
 
     database = providers.Singleton(
         Database,
-        host=settings.provided.MYSQL_HOST,
-        user=settings.provided.MYSQL_USER,
-        password=settings.provided.MYSQL_PASSWORD,
-        database=settings.provided.MYSQL_DATABASE,
+        db_url=settings.provided.DATABASE_URL,
     )
 
     user_repository: Singleton[UserRepository] = providers.Singleton(

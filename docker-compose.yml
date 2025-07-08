@@ -1,36 +1,41 @@
 version: '3.8'
 
 services:
-  web:
-    container_name: app_backend
-    build: .
-    ports:
-      - "8000:8000"
-    volumes:
-      - .:/app
-    environment:
-      - POETRY_VIRTUALENVS_CREATE=false
-      - ENVIRONMENT=development
-      - MYSQL_HOST=db
-      - MYSQL_USER=user
-      - MYSQL_PASSWORD=password
-      - MYSQL_DATABASE=spend_time_together
-    depends_on:
-      - db
-    command: poetry run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
   db:
     image: mysql:8.0
+    container_name: spend_time_together_db
     restart: always
     environment:
-      - MYSQL_DATABASE=spend_time_together
-      - MYSQL_USER=user
-      - MYSQL_PASSWORD=password
-      - MYSQL_ROOT_PASSWORD=rootpassword
-    ports:
-      - "3306:3306"
+      MYSQL_ROOT_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
     volumes:
       - mysql_data:/var/lib/mysql
-      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "${MYSQL_PORT}:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "${MYSQL_USER}", "-p${MYSQL_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  web:
+    build: .
+    container_name: spend_time_together_web
+    restart: always
+    command: >
+      sh -c "poetry run alembic upgrade head &&
+             poetry run uvicorn app.main:create_app --host 0.0.0.0 --port 8000 --factory"
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - .env
 
 volumes:
   mysql_data:

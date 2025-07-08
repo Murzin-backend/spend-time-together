@@ -58,7 +58,7 @@ docker-compose up --build -d
 
 ### 4. Миграции базы данных
 
-Миграции управляются с помощью Alembic. Подробную информацию можно найти в файле [`migration/README`](migration/README).
+Миграции управляются с помощью Alembic. Подробную информацию можно найти в файле [`migration/README`](migration/README.md).
 
 #### Создание новой миграции
 

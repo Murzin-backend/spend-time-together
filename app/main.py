@@ -4,6 +4,7 @@ from typing import AsyncGenerator
 
 from fastapi import FastAPI
 
+from app.api.exceptions import BaseAPIException, api_exception_handler
 from app.api.routes import api_router
 from app.di.containers import DIContainer
 
@@ -18,6 +19,7 @@ async def lifespan(app: FastAPI, container: DIContainer) -> AsyncGenerator[None,
         modules=[
             "app.main",
             "app.api.users.controller",
+            "app.api.auth.controller",
         ],
         packages=["app.di"],
     )
@@ -44,6 +46,7 @@ def create_app(container: DIContainer | None = None) -> FastAPI:
 
     app.container = container
     app.include_router(api_router)
+    app.add_exception_handler(BaseAPIException, api_exception_handler)
 
     return app
 

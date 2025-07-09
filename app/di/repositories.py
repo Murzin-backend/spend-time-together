@@ -1,6 +1,7 @@
 from dependency_injector import containers, providers
 from dependency_injector.providers import Singleton
 
+from app.core.auth.repository import AuthRepository
 from settings.database import Settings
 from app.core.users.repository import UserRepository
 from app.infra.adapters.database import Database
@@ -16,5 +17,10 @@ class RepositoriesContainer(containers.DeclarativeContainer):
 
     user_repository: Singleton[UserRepository] = providers.Singleton(
         UserRepository,
+        db=database
+    )
+
+    auth_repository: Singleton[AuthRepository] = providers.Singleton(
+        AuthRepository,
         db=database
     )

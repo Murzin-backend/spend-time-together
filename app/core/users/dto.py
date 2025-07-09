@@ -9,6 +9,6 @@ class UserDTO:
     email: str
     first_name: str
     last_name: str
-    password: str
     created_at: datetime
     updated_at: datetime
+    password: str | None = None

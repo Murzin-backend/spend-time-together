@@ -3,7 +3,9 @@ from functools import partial
 from typing import AsyncGenerator
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
+from app.api.auth.controller import router as auth_router
 from app.api.exceptions import BaseAPIException, api_exception_handler
 from app.api.routes import api_router
 from app.di.containers import DIContainer
@@ -44,8 +46,23 @@ def create_app(container: DIContainer | None = None) -> FastAPI:
         lifespan=app_lifespan
     )
 
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["http://localhost:3000"],
+        allow_credentials=True,
+        allow_methods=["GET", "POST", "OPTIONS", "DELETE", "PATCH", "PUT"],
+        allow_headers=[
+            "Content-Type",
+            "Set-Cookie",
+            "Access-Control-Allow-Headers",
+            "Access-Control-Allow-Origin",
+            "Authorization"
+        ],
+    )
+
     app.container = container
     app.include_router(api_router)
+    app.include_router(auth_router, tags=["Auth"])
     app.add_exception_handler(BaseAPIException, api_exception_handler)
 
     return app

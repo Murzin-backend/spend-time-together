@@ -15,8 +15,8 @@ class UserRegistrationDTO:
     id: int
     login: str
     first_name: str
-    last_name: str
     email: str
     session_token: str
     created_at: str
     updated_at: str
+    last_name: str | None = None

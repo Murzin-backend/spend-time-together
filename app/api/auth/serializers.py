@@ -25,7 +25,7 @@ class AuthUserRegistrationSerializer(BaseModel):
     login: str = Field(..., title="Логин пользователя", description="Уникальный логин для регистрации")
     email: EmailStr = Field(..., title="Email", description="Email адрес пользователя")
     first_name: str = Field(..., title="Имя", description="Имя пользователя")
-    last_name: str = Field(..., title="Фамилия", description="Фамилия пользователя")
+    last_name: str | None = Field(default=None, title="Фамилия", description="Фамилия пользователя")
     password: str = Field(..., title="Пароль", description="Пароль для регистрации")
 
     @field_validator("password")
@@ -42,7 +42,7 @@ class AuthUserRegistrationResponseSerializer(BaseModel):
     login: str = Field(..., title="Логин пользователя", description="Уникальный логин для входа в систему")
     email: str = Field(..., title="Email", description="Email адрес пользователя")
     first_name: str = Field(..., title="Имя", description="Имя пользователя")
-    last_name: str = Field(..., title="Фамилия", description="Фамилия пользователя")
+    last_name: str | None = Field(default=None, title="Фамилия", description="Фамилия пользователя")
 
     class Config:
         from_attributes = True

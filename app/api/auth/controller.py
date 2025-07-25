@@ -32,7 +32,7 @@ async def login_user(
     response: Response,
     credentials: AuthUserSerializer = Body(),
     auth_service: AuthService = Depends(Provide[DIContainer.services.auth_service])
-) -> OkResponse[AuthUserResponseSerializer]:
+) -> OkResponse[type[AuthUserResponseSerializer]]:
     """
     Авторизация пользователя и выдача токена.
 
@@ -58,21 +58,21 @@ async def login_user(
 
 @router.post(
     "/auth/registration",
-    status_code=status.HTTP_200_OK,
+    status_code=status.HTTP_201_CREATED,
     responses=build_responses(
-        status_code=status.HTTP_200_OK,
-        docs_response_model=OkResponse[AuthUserResponseSerializer],
-        exceptions=(),
+        status_code=status.HTTP_201_CREATED,
+        docs_response_model=OkResponse[AuthUserRegistrationResponseSerializer],
+        exceptions=(UserAlreadyExistsException,),
     ),
-    summary="Авторизация пользователя и выдача токена",
-    response_model=OkResponse[AuthUserResponseSerializer],
+    summary="Регистрация пользователя и выдача токена",
+    response_model=OkResponse[AuthUserRegistrationResponseSerializer],
 )
 @inject
 async def user_registration(
     response: Response,
     registration_data: AuthUserRegistrationSerializer = Body(),
     auth_service: AuthService = Depends(Provide[DIContainer.services.auth_service])
-) -> OkResponse[AuthUserRegistrationResponseSerializer]:
+) -> OkResponse[type[AuthUserRegistrationResponseSerializer]]:
     """
     Регистрация пользователя и выдача токена.
 
@@ -96,7 +96,7 @@ async def user_registration(
     )
 
     return OkResponse.new(
-        status_code=status.HTTP_200_OK,
+        status_code=status.HTTP_201_CREATED,
         model=AuthUserRegistrationResponseSerializer,
         data=asdict(user_registration_dto)
     )

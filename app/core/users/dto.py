@@ -8,7 +8,7 @@ class UserDTO:
     login: str
     email: str
     first_name: str
-    last_name: str
     created_at: datetime
     updated_at: datetime
+    last_name: str | None = None
     password: str | None = None

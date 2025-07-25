@@ -35,8 +35,8 @@ class UserRepository(BaseRepository):
         login: str,
         email: str,
         first_name: str,
-        last_name: str,
         password: str,
+        last_name: str | None = None,
     ) -> Users:
         new_user = Users(
             login=login,

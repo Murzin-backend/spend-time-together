@@ -51,8 +51,8 @@ class AuthService:
         login: str,
         password: str,
         first_name: str,
-        last_name: str,
         email: str,
+        last_name: str | None = None,
     ) -> UserRegistrationDTO:
         if await self._is_user_exist_by_login_or_email(login=login, email=email):
             raise UserAlreadyExists(login=login, email=email)

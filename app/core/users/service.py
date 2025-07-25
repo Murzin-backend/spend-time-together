@@ -57,8 +57,8 @@ class UserService:
         login: str,
         email: str,
         first_name: str,
-        last_name: str,
         hashed_password: str,
+        last_name: str | None = None,
     ):
         created_user = await self.user_repository.create_user(
             login=login,

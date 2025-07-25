@@ -3,6 +3,7 @@ from dependency_injector.providers import Singleton
 
 from app.core.auth.password.password_service import PasswordService
 from app.core.auth.service import AuthService
+from app.core.rooms.service import RoomService
 from app.core.users.service import UserService
 from settings.database import Settings
 
@@ -25,4 +26,9 @@ class ServicesContainer(containers.DeclarativeContainer):
         user_service=user_service,
         password_service=password_service,
         auth_repository=repositories.auth_repository
+    )
+
+    room_service: Singleton = providers.Singleton(
+        RoomService,
+        room_repository=repositories.room_repository
     )

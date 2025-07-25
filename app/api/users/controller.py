@@ -1,3 +1,5 @@
+from dataclasses import asdict
+
 from dependency_injector.wiring import inject, Provide
 from fastapi import APIRouter, Depends, status
 
@@ -6,7 +8,7 @@ from app.api.routing import SpendTimeTogetherAPIRoute
 from app.api.users.serializers import UserInfoSerializer
 from app.core.users.service import UserService
 from app.di.containers import DIContainer
-from dataclasses import asdict
+
 router = APIRouter(route_class=SpendTimeTogetherAPIRoute)
 
 

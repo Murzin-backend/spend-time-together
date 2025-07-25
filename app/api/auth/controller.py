@@ -32,7 +32,7 @@ async def login_user(
     response: Response,
     credentials: AuthUserSerializer = Body(),
     auth_service: AuthService = Depends(Provide[DIContainer.services.auth_service])
-) -> OkResponse[type[AuthUserResponseSerializer]]:
+) -> OkResponse[AuthUserResponseSerializer]:
     """
     Авторизация пользователя и выдача токена.
 
@@ -72,7 +72,7 @@ async def user_registration(
     response: Response,
     registration_data: AuthUserRegistrationSerializer = Body(),
     auth_service: AuthService = Depends(Provide[DIContainer.services.auth_service])
-) -> OkResponse[type[AuthUserRegistrationResponseSerializer]]:
+) -> OkResponse[AuthUserRegistrationResponseSerializer]:
     """
     Регистрация пользователя и выдача токена.
 

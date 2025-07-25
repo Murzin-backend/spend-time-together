@@ -5,7 +5,6 @@ from typing import AsyncGenerator
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.auth.controller import router as auth_router
 from app.api.exceptions import BaseAPIException, api_exception_handler
 from app.api.routes import api_router
 from app.di.containers import DIContainer
@@ -22,6 +21,8 @@ async def lifespan(app: FastAPI, container: DIContainer) -> AsyncGenerator[None,
             "app.main",
             "app.api.users.controller",
             "app.api.auth.controller",
+            "app.api.rooms.controller",
+            "app.api.auth.deps",
         ],
         packages=["app.di"],
     )
@@ -62,7 +63,6 @@ def create_app(container: DIContainer | None = None) -> FastAPI:
 
     app.container = container
     app.include_router(api_router)
-    app.include_router(auth_router, tags=["Auth"])
     app.add_exception_handler(BaseAPIException, api_exception_handler)
 
     return app

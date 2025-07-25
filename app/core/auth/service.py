@@ -30,6 +30,18 @@ class AuthService:
         return await self.get_or_create_user_session(user_id=user_dto.id)
 
 
+    async def get_user_by_session_token(self, session_token: str) -> UsersSessionDTO | None:
+        session = await self.auth_repository.get_users_session_by_token(session_token=session_token)
+        if session is None:
+            return None
+        return UsersSessionDTO(
+            id=session.id,
+            user_id=session.user_id,
+            session_token=session.session_token,
+            created_at=session.created_at.__str__(),
+            updated_at=session.updated_at.__str__()
+        )
+
 
     async def get_or_create_user_session(self, user_id: int) -> UsersSessionDTO:
         session = await self.auth_repository.get_users_session(user_id=user_id)
@@ -42,8 +54,8 @@ class AuthService:
             id=session.id,
             user_id=session.user_id,
             session_token=session.session_token,
-            created_at=session.created_at,
-            updated_at=session.updated_at
+            created_at=session.created_at.__str__(),
+            updated_at=session.updated_at.__str__()
         )
 
     async def user_registration(

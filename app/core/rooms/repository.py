@@ -96,3 +96,12 @@ class RoomRepository(BaseRepository):
             session.add(user_room)
             await session.commit(
     )
+
+    async def get_users_by_room_id(
+        self,
+        room_id: int
+    ) -> list[int]:
+        query = select(UsersRooms.user_id).where(UsersRooms.room_id == room_id)
+        async with self.db.session() as session:
+            result = await session.execute(query)
+            return list(result.scalars().all())

@@ -50,3 +50,12 @@ class UserRepository(BaseRepository):
             await session.commit()
             await session.refresh(new_user)
             return new_user
+
+    async def get_users_by_ids(
+        self,
+        user_ids: list[int]
+    ) -> list[Users]:
+        query = select(Users).where(Users.id.in_(user_ids))
+        async with self.db.session() as session:
+            result = await session.execute(query)
+            return list(result.scalars().all())

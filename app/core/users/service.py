@@ -77,3 +77,20 @@ class UserService:
             created_at=created_user.created_at,
             updated_at=created_user.updated_at
         )
+
+    async def get_users_by_ids(
+        self,
+        user_ids: list[int]
+    ) -> list[UserDTO]:
+        users = await self.user_repository.get_users_by_ids(user_ids)
+        return [
+            UserDTO(
+                id=user.id,
+                login=user.login,
+                email=user.email,
+                first_name=user.first_name,
+                last_name=user.last_name,
+                created_at=user.created_at,
+                updated_at=user.updated_at
+            ) for user in users
+        ]

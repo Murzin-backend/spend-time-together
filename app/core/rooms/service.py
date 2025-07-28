@@ -61,14 +61,7 @@ class RoomService:
         room_id: int,
         user_id: int
     ) -> InviteCodeDTO:
-        if not self.get_room_by_id(room_id=room_id):
-            raise RoomNotFound(id=room_id)
-
-        if not await self.room_repository.is_user_in_room(
-            room_id=room_id,
-            user_id=user_id
-        ):
-            raise UserNotInRoom(room_id=room_id, user_id=user_id)
+        await self.__validate_users_room(room_id=room_id, user_id=user_id)
 
         invite_code = _generate_invite_code()
         room_invites = await self.room_repository.create_invite_code(
@@ -109,3 +102,29 @@ class RoomService:
             description=room_model.description,
             created_at=room_model.created_at.isoformat(),
         )
+
+    async def __validate_users_room(
+        self,
+        room_id: int,
+        user_id: int
+    ) -> None:
+        if not self.get_room_by_id(room_id=room_id):
+            raise RoomNotFound(id=room_id)
+
+        if not await self.room_repository.is_user_in_room(
+            room_id=room_id,
+            user_id=user_id
+        ):
+            raise UserNotInRoom(room_id=room_id, user_id=user_id)
+
+
+    async def get_users_in_room(
+        self,
+        room_id: int,
+        user_id: int
+    ) -> list[int]:
+        await self.__validate_users_room(room_id=room_id, user_id=user_id)
+        return await self.room_repository.get_users_by_room_id(room_id=room_id)
+
+
+

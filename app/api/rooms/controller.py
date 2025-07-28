@@ -11,9 +11,11 @@ from app.api.rooms.exceptions import RoomNotFoundException, UserNotInRoomExcepti
     UserAlreadyInRoomException
 from app.api.rooms.serializers import RoomInfoSerializer, RoomCreateSerializer, InviteCodeSerializer
 from app.api.routing import SpendTimeTogetherAPIRoute
+from app.api.users.serializers import UserInfoSerializer
 from app.core.rooms.exceptions import RoomNotFound, UserNotInRoom, RoomNotFoundByInviteCode, UserAlreadyInRoom
 from app.core.rooms.service import RoomService
 from app.core.users.dto import UserDTO
+from app.core.users.service import UserService
 from app.di.containers import DIContainer
 
 router = APIRouter(route_class=SpendTimeTogetherAPIRoute)
@@ -158,4 +160,46 @@ async def activate_invite_code(
         status_code=status.HTTP_200_OK,
         model=RoomInfoSerializer,
         data=asdict(room_dto)
+    )
+
+
+@router.get(
+    "/rooms/{room_id}/users",
+    status_code=status.HTTP_200_OK,
+    response_model=OkResponse[list[UserInfoSerializer]],
+    responses=build_responses(
+        status_code=status.HTTP_200_OK,
+        docs_response_model=OkResponse[list[UserInfoSerializer]],
+        exceptions=(RoomNotFoundException, UserNotInRoomException),
+    )
+)
+@inject
+async def get_room_users(
+    room_id: int = Path(..., description="ID комнаты"),
+    current_user: UserDTO = Depends(get_authenticated_user),
+    room_service: RoomService = Depends(Provide[DIContainer.services.room_service]),
+    user_service: UserService = Depends(Provide[DIContainer.services.user_service])
+) -> OkResponse[list[UserInfoSerializer]]:
+    """
+    Получает список пользователей в комнате.
+
+    :param room_id: ID комнаты.
+    :param current_user: Аутентифицированный пользователь.
+    :param room_service: Сервис для работы с комнатами.
+    :param user_service: Сервис для работы с пользователями.
+    :return: Список пользователей в комнате.
+    """
+    try:
+        user_ids = await room_service.get_users_in_room(room_id=room_id, user_id=current_user.id)
+    except RoomNotFound as error:
+        raise RoomNotFoundException(detail=str(error)) from error
+    except UserNotInRoom as error:
+        raise UserNotInRoomException(detail=str(error)) from error
+
+    users_dto = await user_service.get_users_by_ids(user_ids=user_ids)
+
+    return OkResponse.new(
+        status_code=status.HTTP_200_OK,
+        model=list[UserInfoSerializer],
+        data=[asdict(user_dto) for user_dto in users_dto],
     )

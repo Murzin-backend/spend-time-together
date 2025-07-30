@@ -1,9 +1,10 @@
-# app/api/auth/deps.py
 from typing import Annotated
 
 from dependency_injector.wiring import inject, Provide
-from fastapi import Depends, HTTPException, Request, status
+from fastapi import Depends, HTTPException, Request, status, Query
+from starlette.websockets import WebSocket
 
+from app.core.auth.dto import UsersSessionDTO
 from app.core.auth.service import AuthService
 from app.core.users.dto import UserDTO
 from app.di.containers import DIContainer
@@ -43,3 +44,20 @@ async def get_authenticated_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
     return current_user
+
+
+@inject
+async def get_authenticated_user_for_ws(
+    websocket: WebSocket,
+    token: str | None = Query(None),
+    auth_service: AuthService = Depends(Provide[DIContainer.services.auth_service]),
+) -> UsersSessionDTO | None:
+    if token is None:
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+        return None
+
+    user = await auth_service.get_user_by_session_token(token)
+    if user is None:
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+        return None
+    return user

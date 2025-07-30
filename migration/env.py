@@ -9,6 +9,7 @@ from app.infra.adapters.database import Base
 from app.core.users import models as users_models
 from app.core.auth.models import UsersSession
 from app.core.rooms.models import Rooms, UsersRooms, RoomInvites
+from app.core.activity.models import Activity, UserActivity, UserActivityVariants
 
 from settings.database import Settings
 

@@ -1,6 +1,7 @@
 from dependency_injector import containers, providers
 from dependency_injector.providers import Singleton
 
+from app.core.activity.repository import ActivityRepository
 from app.core.auth.repository import AuthRepository
 from app.core.rooms.repository import RoomRepository
 from app.core.users.repository import UserRepository
@@ -28,5 +29,10 @@ class RepositoriesContainer(containers.DeclarativeContainer):
 
     room_repository: Singleton = providers.Singleton(
         RoomRepository,
+        db=database
+    )
+
+    activity_repository: Singleton = providers.Singleton(
+        ActivityRepository,
         db=database
     )

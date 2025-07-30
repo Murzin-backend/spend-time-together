@@ -1,6 +1,7 @@
 from dependency_injector import containers, providers
 from dependency_injector.providers import Singleton
 
+from app.core.activity.service import ActivityService
 from app.core.auth.password.password_service import PasswordService
 from app.core.auth.service import AuthService
 from app.core.rooms.service import RoomService
@@ -31,4 +32,10 @@ class ServicesContainer(containers.DeclarativeContainer):
     room_service: Singleton = providers.Singleton(
         RoomService,
         room_repository=repositories.room_repository
+    )
+
+    activity_service: Singleton = providers.Singleton(
+        ActivityService,
+        room_service=room_service,
+        activity_repository=repositories.activity_repository
     )

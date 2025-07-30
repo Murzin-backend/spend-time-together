@@ -121,7 +121,7 @@ async def create_invite_code(
 
 
 @router.post(
-    "/rooms/invite_code/activate",
+    "/rooms/join",
     status_code=status.HTTP_200_OK,
     response_model=OkResponse[RoomInfoSerializer],
     responses=build_responses(

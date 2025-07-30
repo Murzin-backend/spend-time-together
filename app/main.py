@@ -51,7 +51,7 @@ def create_app(container: DIContainer | None = None) -> FastAPI:
 
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["http://localhost:3000"],
+        allow_origins=["http://localhost:3000", "https://spend-time-together.ru"],
         allow_credentials=True,
         allow_methods=["GET", "POST", "OPTIONS", "DELETE", "PATCH", "PUT"],
         allow_headers=[

@@ -4,6 +4,7 @@ from typing import AsyncGenerator
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.staticfiles import StaticFiles
 
 from app.api.exceptions import BaseAPIException, api_exception_handler
 from app.api.routes import api_router
@@ -48,6 +49,7 @@ def create_app(container: DIContainer | None = None) -> FastAPI:
         version="0.1.0",
         lifespan=app_lifespan
     )
+    app.mount("/static", StaticFiles(directory="static"), name="static")
 
     app.add_middleware(
         CORSMiddleware,

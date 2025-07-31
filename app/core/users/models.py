@@ -15,6 +15,8 @@ class Users(Base):
     first_name: Mapped[str] = mapped_column(String(50), nullable=False)
     last_name: Mapped[str] = mapped_column(String(50), nullable=True)
     password: Mapped[str] = mapped_column(VARCHAR(length=100), nullable=True)
+    avatar_url: Mapped[str] = mapped_column(String(255), nullable=True)
+    telegram_link: Mapped[str] = mapped_column(String(255), nullable=True, default=None)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),

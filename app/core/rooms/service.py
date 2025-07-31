@@ -16,6 +16,11 @@ def _generate_invite_code(length: int = 8) -> str:
 class RoomService:
     room_repository: RoomRepository
 
+    async def exit_room(self, user_id: int, room_id: int) -> None:
+        await self.validate_users_room(user_id=user_id, room_id=room_id)
+        await self.room_repository.remove_user_from_room(room_id=room_id, user_id=user_id)
+
+
     async def get_rooms_by_user_id(self, user_id: int) -> list[RoomDTO]:
         room_models = await self.room_repository.get_rooms_by_user_id(user_id=user_id)
         return [
@@ -108,7 +113,7 @@ class RoomService:
         room_id: int,
         user_id: int
     ) -> None:
-        if not self.get_room_by_id(room_id=room_id):
+        if not await self.get_room_by_id(room_id=room_id):
             raise RoomNotFound(id=room_id)
 
         if not await self.room_repository.is_user_in_room(

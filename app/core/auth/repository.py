@@ -8,6 +8,15 @@ from app.core.mixins import BaseRepository
 
 @dataclass
 class AuthRepository(BaseRepository):
+    async def delete_user_session_by_token(self, session_token: str) -> None:
+        query = select(UsersSession).where(UsersSession.session_token == session_token)
+        async with self.db.session() as session:
+            result = await session.execute(query)
+            user_session = result.scalars().first()
+            if user_session:
+                await session.delete(user_session)
+                await session.commit()
+
     async def get_users_session(self, user_id: int) -> UsersSession | None:
         query = select(
             UsersSession

@@ -12,6 +12,7 @@ from app.api.rooms.exceptions import RoomNotFoundException, UserNotInRoomExcepti
 from app.api.routing import SpendTimeTogetherAPIRoute
 from app.core.activity.dto import CreateActivityDTO
 from app.core.activity.service import ActivityService
+from app.core.auth.dto import UsersSessionDTO
 from app.core.rooms.exceptions import RoomNotFound, UserNotInRoom
 from app.core.users.dto import UserDTO
 from app.di.containers import DIContainer
@@ -36,7 +37,7 @@ router = APIRouter(route_class=SpendTimeTogetherAPIRoute)
 @inject
 async def get_room_activities(
     room_id: int = Path(..., description="ID комнаты"),
-    current_user: UserDTO = Depends(get_authenticated_user),
+    current_user: UsersSessionDTO = Depends(get_authenticated_user),
     activity_service: ActivityService = Depends(Provide[DIContainer.services.activity_service])
 ):
     try:
@@ -71,7 +72,7 @@ async def get_room_activities(
 async def create_activity(
     activity_data: CreateActivitySerializer,
     room_id: int = Path(..., description="ID комнаты"),
-    current_user: UserDTO = Depends(get_authenticated_user),
+    current_user: UsersSessionDTO = Depends(get_authenticated_user),
     activity_service: ActivityService = Depends(Provide[DIContainer.services.activity_service])
 ):
     try:

@@ -16,6 +16,10 @@ class AuthService:
     password_service: PasswordService
 
 
+    async def logout_user(self, session_token: str) -> None:
+        await self.auth_repository.delete_user_session_by_token(session_token=session_token)
+
+
     async def authenticate_user(self, login: str, password: str) -> UsersSessionDTO:
         user_dto = await self.user_service.get_user_by_login(login=login)
 
@@ -30,7 +34,7 @@ class AuthService:
         return await self.get_or_create_user_session(user_id=user_dto.id)
 
 
-    async def get_user_by_session_token(self, session_token: str) -> UsersSessionDTO | None:
+    async def get_user_session_by_token(self, session_token: str) -> UsersSessionDTO | None:
         session = await self.auth_repository.get_users_session_by_token(session_token=session_token)
         if session is None:
             return None

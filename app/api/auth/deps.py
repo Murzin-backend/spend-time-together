@@ -6,7 +6,6 @@ from starlette.websockets import WebSocket
 
 from app.core.auth.dto import UsersSessionDTO
 from app.core.auth.service import AuthService
-from app.core.users.dto import UserDTO
 from app.di.containers import DIContainer
 
 
@@ -14,7 +13,7 @@ from app.di.containers import DIContainer
 async def get_current_user(
     request: Request,
     auth_service: AuthService = Depends(Provide[DIContainer.services.auth_service]),
-) -> UserDTO | None:
+) -> UsersSessionDTO | None:
     """
     Получает токен сессии из cookie и возвращает пользователя.
 
@@ -24,13 +23,13 @@ async def get_current_user(
     if not session_token:
         return None
 
-    user = await auth_service.get_user_by_session_token(session_token)
-    return user
+    user_session_dto = await auth_service.get_user_session_by_token(session_token=session_token)
+    return user_session_dto
 
 
 async def get_authenticated_user(
-    current_user: Annotated[UserDTO | None, Depends(get_current_user)],
-) -> UserDTO:
+    current_user: Annotated[UsersSessionDTO | None, Depends(get_current_user)],
+) -> UsersSessionDTO:
     """
     Проверяет, аутентифицирован ли пользователь.
 
@@ -56,7 +55,7 @@ async def get_authenticated_user_for_ws(
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
         return None
 
-    user = await auth_service.get_user_by_session_token(token)
+    user = await auth_service.get_user_session_by_token(token)
     if user is None:
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
         return None

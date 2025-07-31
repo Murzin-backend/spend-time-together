@@ -19,6 +19,8 @@ dependency-injector = "^4.41.0"
 alembic = "^1.16.2"
 passlib = {extras = ["bcrypt"], version = "^1.7.4"}
 pydantic = {extras = ["email"], version = "^2.11.7"}
+pillow = "^11.3.0"
+python-multipart = "^0.0.20"
 
 [tool.poetry.group.test.dependencies]
 pytest = "^7.4.4"

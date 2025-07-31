@@ -3,13 +3,16 @@ from dataclasses import asdict
 from dependency_injector.wiring import inject, Provide
 from fastapi import APIRouter, Body, Depends, Response
 from fastapi import status
+from pydantic import BaseModel
 
+from app.api.auth.deps import get_authenticated_user
 from app.api.auth.exceptions import UserNotFoundException, UserAlreadyExistsException
 from app.api.auth.serializers import AuthUserSerializer, AuthUserResponseSerializer, AuthUserRegistrationSerializer, \
     AuthUserRegistrationResponseSerializer
 from app.api.response_patterns import OkResponse
 from app.api.responses import build_responses
 from app.api.routing import SpendTimeTogetherAPIRoute
+from app.core.auth.dto import UsersSessionDTO
 from app.core.auth.exceptions import UserNotFound, IncorrectPassword, UserAlreadyExists
 from app.core.auth.service import AuthService
 from app.di.containers import DIContainer
@@ -101,6 +104,30 @@ async def user_registration(
         data=asdict(user_registration_dto)
     )
 
+
+@router.post(
+    "/auth/logout",
+    status_code=status.HTTP_200_OK,
+    summary="Выход пользователя из системы",
+    responses=build_responses(
+        status_code=status.HTTP_200_OK,
+        docs_response_model=OkResponse[BaseModel],
+    ),
+)
+@inject
+async def logout_user(
+    response: Response,
+    auth_service: AuthService = Depends(Provide[DIContainer.services.auth_service]),
+    current_user: UsersSessionDTO = Depends(get_authenticated_user),
+) -> OkResponse[BaseModel]:
+    """
+    Выход пользователя из системы.
+
+    Этот эндпоинт позволяет пользователю выйти из системы, удаляя токен сессии.
+    """
+    await auth_service.logout_user(session_token=current_user.session_token)
+    response.delete_cookie(key="session_token")
+    return OkResponse.new(status_code=status.HTTP_200_OK, model=BaseModel, data={})
 
 def _set_cookie(
     response: Response,

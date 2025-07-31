@@ -8,6 +8,12 @@ from app.core.users.models import Users
 
 @dataclass
 class UserRepository(BaseRepository):
+    async def get_user_by_id(self, user_id: int) -> Users | None:
+        query = select(Users).where(Users.id == user_id)
+        async with self.db.session() as session:
+            result = await session.execute(query)
+            return result.scalars().first()
+
     async def get_users(self) -> list[Users]:
         query = select(Users)
         async with self.db.session() as session:
@@ -50,6 +56,13 @@ class UserRepository(BaseRepository):
             await session.commit()
             await session.refresh(new_user)
             return new_user
+
+    async def update_user(self, user: Users) -> Users:
+        async with self.db.session() as session:
+            session.add(user)
+            await session.commit()
+            await session.refresh(user)
+            return user
 
     async def get_users_by_ids(
         self,

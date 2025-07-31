@@ -9,6 +9,18 @@ from app.core.rooms.models import Rooms, UsersRooms, RoomInvites
 
 @dataclass
 class RoomRepository(BaseRepository):
+    async def remove_user_from_room(self, user_id: int, room_id: int) -> None:
+        query = select(UsersRooms).where(
+            UsersRooms.user_id == user_id,
+            UsersRooms.room_id == room_id
+        )
+        async with self.db.session() as session:
+            result = await session.execute(query)
+            user_room = result.scalars().first()
+            if user_room:
+                await session.delete(user_room)
+                await session.commit()
+
     async def get_rooms_by_user_id(self, user_id: int) -> list[Rooms]:
         query = select(Rooms).join(UsersRooms, UsersRooms.room_id == Rooms.id).where(
             UsersRooms.user_id == user_id

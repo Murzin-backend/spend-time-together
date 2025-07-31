@@ -3,6 +3,7 @@ from dataclasses import asdict
 from dependency_injector.wiring import inject, Provide
 from fastapi import APIRouter, Depends, Path
 from fastapi import status, Body
+from pydantic import BaseModel
 
 from app.api.auth.deps import get_authenticated_user
 from app.api.response_patterns import OkResponse
@@ -12,6 +13,7 @@ from app.api.rooms.exceptions import RoomNotFoundException, UserNotInRoomExcepti
 from app.api.rooms.serializers import RoomInfoSerializer, RoomCreateSerializer, InviteCodeSerializer
 from app.api.routing import SpendTimeTogetherAPIRoute
 from app.api.users.serializers import UserInfoSerializer
+from app.core.auth.dto import UsersSessionDTO
 from app.core.rooms.exceptions import RoomNotFound, UserNotInRoom, RoomNotFoundByInviteCode, UserAlreadyInRoom
 from app.core.rooms.service import RoomService
 from app.core.users.dto import UserDTO
@@ -29,7 +31,7 @@ router = APIRouter(route_class=SpendTimeTogetherAPIRoute)
 )
 @inject
 async def get_users_rooms_list(
-    current_user: UserDTO = Depends(get_authenticated_user),
+    current_user: UsersSessionDTO = Depends(get_authenticated_user),
     room_service: RoomService = Depends(Provide[DIContainer.services.room_service])
 ) -> OkResponse[list[RoomInfoSerializer]]:
     """
@@ -55,7 +57,7 @@ async def get_users_rooms_list(
 )
 @inject
 async def create_room(
-    current_user: UserDTO = Depends(get_authenticated_user),
+    current_user: UsersSessionDTO = Depends(get_authenticated_user),
     create_room_info: RoomCreateSerializer = Body(),
     room_service: RoomService = Depends(Provide[DIContainer.services.room_service])
 ) -> OkResponse[RoomInfoSerializer]:
@@ -92,7 +94,7 @@ async def create_room(
 @inject
 async def create_invite_code(
     room_id: int = Path(..., description="ID комнаты"),
-    current_user: UserDTO = Depends(get_authenticated_user),
+    current_user: UsersSessionDTO = Depends(get_authenticated_user),
     room_service: RoomService = Depends(Provide[DIContainer.services.room_service])
 ) -> OkResponse[InviteCodeSerializer]:
     """
@@ -133,7 +135,7 @@ async def create_invite_code(
 @inject
 async def activate_invite_code(
     invite_code: str = Body(..., embed=True, description="Код-приглашение для комнаты"),
-    current_user: UserDTO = Depends(get_authenticated_user),
+    current_user: UsersSessionDTO = Depends(get_authenticated_user),
     room_service: RoomService = Depends(Provide[DIContainer.services.room_service])
 ) -> OkResponse[RoomInfoSerializer]:
     """
@@ -176,7 +178,7 @@ async def activate_invite_code(
 @inject
 async def get_room_users(
     room_id: int = Path(..., description="ID комнаты"),
-    current_user: UserDTO = Depends(get_authenticated_user),
+    current_user: UsersSessionDTO = Depends(get_authenticated_user),
     room_service: RoomService = Depends(Provide[DIContainer.services.room_service]),
     user_service: UserService = Depends(Provide[DIContainer.services.user_service])
 ) -> OkResponse[list[UserInfoSerializer]]:
@@ -203,3 +205,43 @@ async def get_room_users(
         model=list[UserInfoSerializer],
         data=[asdict(user_dto) for user_dto in users_dto],
     )
+
+
+@router.post(
+    "/rooms/{room_id}/exit",
+    status_code=status.HTTP_200_OK,
+    response_model=OkResponse[BaseModel],
+    responses=build_responses(
+        status_code=status.HTTP_200_OK,
+        docs_response_model=OkResponse[BaseModel],
+        exceptions=(RoomNotFoundException, UserNotInRoomException),
+    ),
+    summary="Покинуть комнату",
+)
+@inject
+async def exit_room(
+    room_id: int = Path(..., description="ID комнаты"),
+    current_user: UsersSessionDTO = Depends(get_authenticated_user),
+    room_service: RoomService = Depends(Provide[DIContainer.services.room_service])
+) -> OkResponse[BaseModel]:
+    """
+    Позволяет пользователю покинуть комнату.
+
+    :param room_id: ID комнаты, которую пользователь хочет покинуть.
+    :param current_user: Аутентифицированный пользователь.
+    :param room_service: Сервис для работы с комнатами.
+    :return: Ответ об успешном выходе из комнаты.
+    """
+    try:
+        await room_service.exit_room(room_id=room_id, user_id=current_user.id)
+    except RoomNotFound as error:
+        raise RoomNotFoundException(detail=str(error)) from error
+    except UserNotInRoom as error:
+        raise UserNotInRoomException(detail=str(error)) from error
+
+    return OkResponse.new(
+        status_code=status.HTTP_200_OK,
+        model=BaseModel,
+        data={}
+    )
+

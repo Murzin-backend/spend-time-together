@@ -32,6 +32,8 @@ class AuthUserRegistrationSerializer(BaseModel):
     def password_complexity(cls, value: str) -> str:
         if not re.search(r"[a-zA-Z]", value) or not re.search(r"\d", value):
             raise ValueError("Пароль должен содержать хотя бы одну букву и одну цифру")
+        if len(value) < 8:
+            raise ValueError("Пароль должен быть не короче 8 символов")
         return value
 
 

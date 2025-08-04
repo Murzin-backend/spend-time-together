@@ -20,7 +20,6 @@ class RoomService:
         await self.validate_users_room(user_id=user_id, room_id=room_id)
         await self.room_repository.remove_user_from_room(room_id=room_id, user_id=user_id)
 
-
     async def get_rooms_by_user_id(self, user_id: int) -> list[RoomDTO]:
         room_models = await self.room_repository.get_rooms_by_user_id(user_id=user_id)
         return [

@@ -37,5 +37,6 @@ class ServicesContainer(containers.DeclarativeContainer):
     activity_service: Singleton = providers.Singleton(
         ActivityService,
         room_service=room_service,
+        user_service=user_service,
         activity_repository=repositories.activity_repository
     )

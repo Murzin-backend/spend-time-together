@@ -9,6 +9,7 @@ class ActivityDTO:
     id: int
     name: str
     room_id: int
+    creator_user_id: int
     status: ActivityStatuses
     type: ActivityTypes
     scheduled_at: datetime | None

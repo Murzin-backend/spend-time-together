@@ -6,12 +6,15 @@ from app.core.activity.exceptions import ActivityNotFound, ActivityNotInProgress
 from app.core.activity.models import UserActivity, UserActivityVariants
 from app.core.activity.repository import ActivityRepository
 from app.core.rooms.service import RoomService
+from app.core.users.dto import UserDTO
+from app.core.users.service import UserService
 
 
 @dataclass
 class ActivityService:
     activity_repository: ActivityRepository
     room_service: RoomService
+    user_service: UserService
 
     async def get_activities_by_room_id(
         self,
@@ -19,7 +22,6 @@ class ActivityService:
         user_id: int
     ) -> list[ActivityDTO]:
         await self.room_service.validate_users_room(room_id=room_id, user_id=user_id)
-
 
         activities = await self.activity_repository.get_activities_by_room_id(room_id=room_id)
         return [
@@ -30,7 +32,8 @@ class ActivityService:
                 status=activity.status,
                 type=activity.type,
                 scheduled_at=activity.scheduled_at.__str__() if activity.scheduled_at else None,
-                winner_user_id=activity.winner_user_id
+                winner_user_id=activity.winner_user_id,
+                creator_user_id=activity.creator_user_id
             ) for activity in activities
         ]
 
@@ -46,7 +49,8 @@ class ActivityService:
             status=activity.status,
             type=activity.type,
             scheduled_at=activity.scheduled_at.__str__() if activity.scheduled_at else None,
-            winner_user_id=activity.winner_user_id
+            winner_user_id=activity.winner_user_id,
+            creator_user_id = activity.creator_user_id
         )
 
     async def create_activity(
@@ -57,7 +61,11 @@ class ActivityService:
     ) -> ActivityDTO:
         await self.room_service.validate_users_room(room_id=room_id, user_id=user_id)
 
-        created_activity = await self.activity_repository.create_activity(activity_dto=activity_dto, room_id=room_id)
+        created_activity = await self.activity_repository.create_activity(
+            activity_dto=activity_dto,
+            room_id=room_id,
+            creator_user_id=user_id
+        )
 
         return ActivityDTO(
             id=created_activity.id,
@@ -66,7 +74,8 @@ class ActivityService:
             status=created_activity.status,
             type=created_activity.type,
             scheduled_at=created_activity.scheduled_at if created_activity.scheduled_at else None,
-            winner_user_id=created_activity.winner_user_id
+            winner_user_id=created_activity.winner_user_id,
+            creator_user_id=created_activity.creator_user_id
         )
 
     async def join_activity(self, user_id: int, activity_id: int) -> UserActivity:
@@ -74,13 +83,30 @@ class ActivityService:
         if not activity:
             raise ActivityNotFound(activity_id=activity_id)
 
-        if activity.status != ActivityStatuses.IN_PROGRESS:
-            raise ActivityNotInProgress(activity_id=activity_id)
-
         return await self.activity_repository.add_user_to_activity(
             user_id=user_id,
             activity_id=activity_id
         )
+
+    async def exit_activity(self, user_id: int, activity_id: int) -> None:
+        activity = await self.activity_repository.get_activity_by_id(activity_id)
+        if not activity:
+            raise ActivityNotFound(activity_id=activity_id)
+
+        users_activity = await self.activity_repository.get_users_by_activity_id(activity_id=activity_id)
+        if not any(ua.user_id == user_id for ua in users_activity):
+            raise UserAlreadySubmittedVariant(activity_id=activity_id, user_id=user_id)
+
+        await self.activity_repository.remove_user_from_activity(user_id=user_id, activity_id=activity_id)
+
+    async def get_users_in_activity(self, activity_id: int) -> list[UserDTO]:
+        activity = await self.activity_repository.get_activity_by_id(activity_id)
+        if not activity:
+            raise ActivityNotFound(activity_id=activity_id)
+
+        users_activity = await self.activity_repository.get_users_by_activity_id(activity_id=activity_id)
+        return await self.user_service.get_users_by_ids(user_ids=[ua.user_id for ua in users_activity])
+
 
     async def submit_variant(self, user_id: int, activity_id: int, variant: str) -> UserActivityVariants:
         activity = await self.activity_repository.get_activity_by_id(activity_id)
@@ -101,7 +127,7 @@ class ActivityService:
         )
 
     async def get_activity_variants(self, activity_id: int) -> list[UserActivityVariantDTO]:
-        variants = await self.activity_repository.get_variants_by_activity_id(activity_id)
+        variants = await self.activity_repository.get_variants_by_activity_id(activity_id=activity_id)
         return [
             UserActivityVariantDTO(
                 user_id=v.user_id,

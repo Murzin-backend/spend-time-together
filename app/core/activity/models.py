@@ -17,6 +17,10 @@ class Activity(Base):
         ForeignKey("rooms.id"),
         nullable=False
     )
+    creator_user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id"),
+        nullable=False
+    )
     winner_user_id: Mapped[int | None] = mapped_column(
         ForeignKey("users.id"),
         nullable=True,

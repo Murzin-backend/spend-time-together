@@ -11,6 +11,31 @@ from app.core.mixins import BaseRepository
 
 @dataclass
 class ActivityRepository(BaseRepository):
+    async def remove_user_from_activity(
+        self,
+        user_id: int,
+        activity_id: int
+    ):
+        query = (
+            select(UserActivity)
+            .where(UserActivity.user_id == user_id, UserActivity.activity_id == activity_id)
+        )
+        async with self.db.session() as session:
+            result = await session.execute(query)
+            user_activity = result.scalars().first()
+            if user_activity:
+                await session.delete(user_activity)
+                await session.commit()
+
+    async def get_users_by_activity_id(
+        self,
+        activity_id: int
+    ) -> list[UserActivity]:
+        query = select(UserActivity).where(UserActivity.activity_id == activity_id)
+
+        async with self.db.session() as session:
+            result = await session.execute(query)
+            return result.scalars().all()
 
     async def get_activities_by_room_id(
         self,
@@ -28,13 +53,19 @@ class ActivityRepository(BaseRepository):
             result = await session.execute(query)
             return result.scalars().first()
 
-    async def create_activity(self, activity_dto: CreateActivityDTO, room_id: int) -> Activity:
+    async def create_activity(
+        self,
+        activity_dto: CreateActivityDTO,
+        room_id: int,
+        creator_user_id: int
+    ) -> Activity:
 
         activity = Activity(
             name=activity_dto.name,
             room_id=room_id,
             status=activity_dto.status,
             type=activity_dto.type,
+            creator_user_id=creator_user_id,
             scheduled_at=activity_dto.scheduled_at or func.now(),
         )
 

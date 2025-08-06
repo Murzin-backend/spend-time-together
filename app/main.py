@@ -1,6 +1,7 @@
 from contextlib import asynccontextmanager
 from functools import partial
 from typing import AsyncGenerator
+import logging
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -10,6 +11,12 @@ from app.api.exceptions import BaseAPIException, api_exception_handler
 from app.api.routes import api_router
 from app.di.containers import DIContainer
 
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+)
+
+logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI, container: DIContainer) -> AsyncGenerator[None, None]:
@@ -24,7 +31,7 @@ async def lifespan(app: FastAPI, container: DIContainer) -> AsyncGenerator[None,
             "app.api.auth.controller",
             "app.api.rooms.controller",
             "app.api.activity.controller",
-            # "app.api.activity.ws",
+            "app.api.activity.ws",
             "app.api.auth.deps",
         ],
         packages=["app.di"],
@@ -53,7 +60,12 @@ def create_app(container: DIContainer | None = None) -> FastAPI:
 
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["http://localhost:3000", "https://spend-time-together.ru"],
+        allow_origins=[
+            "http://localhost:3000",
+            "https://spend-time-together.ru",
+            "ws://localhost:3000",
+            "wss://spend-time-together.ru"
+        ],
         allow_credentials=True,
         allow_methods=["GET", "POST", "OPTIONS", "DELETE", "PATCH", "PUT"],
         allow_headers=[
@@ -61,13 +73,19 @@ def create_app(container: DIContainer | None = None) -> FastAPI:
             "Set-Cookie",
             "Access-Control-Allow-Headers",
             "Access-Control-Allow-Origin",
-            "Authorization"
+            "Authorization",
+            "Connection",
+            "Upgrade",
+            "Sec-WebSocket-Key",
+            "Sec-WebSocket-Version",
+            "Sec-WebSocket-Extensions"
         ],
     )
 
     app.container = container
     app.include_router(api_router)
     app.add_exception_handler(BaseAPIException, api_exception_handler)
+
 
     return app
 

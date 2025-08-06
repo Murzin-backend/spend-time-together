@@ -93,3 +93,4 @@ async def create_activity(
         model=ActivitySerializer,
         data=asdict(activity_dto),
     )
+

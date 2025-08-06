@@ -10,7 +10,7 @@ from app.di.containers import DIContainer
 
 
 @inject
-async def get_current_user(
+async def get_current_user_session(
     request: Request,
     auth_service: AuthService = Depends(Provide[DIContainer.services.auth_service]),
 ) -> UsersSessionDTO | None:
@@ -27,8 +27,8 @@ async def get_current_user(
     return user_session_dto
 
 
-async def get_authenticated_user(
-    current_user: Annotated[UsersSessionDTO | None, Depends(get_current_user)],
+async def get_authenticated_user_session(
+    user_session_dto: Annotated[UsersSessionDTO | None, Depends(get_current_user_session)],
 ) -> UsersSessionDTO:
     """
     Проверяет, аутентифицирован ли пользователь.
@@ -36,13 +36,13 @@ async def get_authenticated_user(
     Если пользователь не аутентифицирован (равен None), вызывает исключение
     HTTP 401 Unauthorized. В противном случае возвращает объект пользователя.
     """
-    if current_user is None:
+    if user_session_dto is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Not authenticated",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    return current_user
+    return user_session_dto
 
 
 @inject

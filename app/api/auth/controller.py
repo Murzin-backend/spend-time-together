@@ -5,7 +5,7 @@ from fastapi import APIRouter, Body, Depends, Response
 from fastapi import status
 from pydantic import BaseModel
 
-from app.api.auth.deps import get_authenticated_user
+from app.api.auth.deps import get_authenticated_user_session
 from app.api.auth.exceptions import UserNotFoundException, UserAlreadyExistsException
 from app.api.auth.serializers import AuthUserSerializer, AuthUserResponseSerializer, AuthUserRegistrationSerializer, \
     AuthUserRegistrationResponseSerializer
@@ -118,14 +118,14 @@ async def user_registration(
 async def logout_user(
     response: Response,
     auth_service: AuthService = Depends(Provide[DIContainer.services.auth_service]),
-    current_user: UsersSessionDTO = Depends(get_authenticated_user),
+    user_session: UsersSessionDTO = Depends(get_authenticated_user_session),
 ) -> OkResponse[BaseModel]:
     """
     Выход пользователя из системы.
 
     Этот эндпоинт позволяет пользователю выйти из системы, удаляя токен сессии.
     """
-    await auth_service.logout_user(session_token=current_user.session_token)
+    await auth_service.logout_user(session_token=user_session.session_token)
     response.delete_cookie(key="session_token")
     return OkResponse.new(status_code=status.HTTP_200_OK, model=BaseModel, data={})
 

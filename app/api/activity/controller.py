@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, Path
 from fastapi import status
 
 from app.api.activity.serializers import ActivitySerializer, CreateActivitySerializer
-from app.api.auth.deps import get_authenticated_user
+from app.api.auth.deps import get_authenticated_user_session
 from app.api.response_patterns import OkResponse
 from app.api.responses import build_responses
 from app.api.rooms.exceptions import RoomNotFoundException, UserNotInRoomException
@@ -14,7 +14,6 @@ from app.core.activity.dto import CreateActivityDTO
 from app.core.activity.service import ActivityService
 from app.core.auth.dto import UsersSessionDTO
 from app.core.rooms.exceptions import RoomNotFound, UserNotInRoom
-from app.core.users.dto import UserDTO
 from app.di.containers import DIContainer
 
 router = APIRouter(route_class=SpendTimeTogetherAPIRoute)
@@ -37,11 +36,14 @@ router = APIRouter(route_class=SpendTimeTogetherAPIRoute)
 @inject
 async def get_room_activities(
     room_id: int = Path(..., description="ID комнаты"),
-    current_user: UsersSessionDTO = Depends(get_authenticated_user),
+    user_session: UsersSessionDTO = Depends(get_authenticated_user_session),
     activity_service: ActivityService = Depends(Provide[DIContainer.services.activity_service])
 ):
     try:
-        activities_dto = await activity_service.get_activities_by_room_id(room_id=room_id, user_id=current_user.id)
+        activities_dto = await activity_service.get_activities_by_room_id(
+            room_id=room_id,
+            user_id=user_session.user_id
+        )
     except RoomNotFound as error:
         raise RoomNotFoundException(detail=str(error)) from error
     except UserNotInRoom as error:
@@ -72,13 +74,13 @@ async def get_room_activities(
 async def create_activity(
     activity_data: CreateActivitySerializer,
     room_id: int = Path(..., description="ID комнаты"),
-    current_user: UsersSessionDTO = Depends(get_authenticated_user),
+    user_session: UsersSessionDTO = Depends(get_authenticated_user_session),
     activity_service: ActivityService = Depends(Provide[DIContainer.services.activity_service])
 ):
     try:
         activity_dto = await activity_service.create_activity(
             room_id=room_id,
-            user_id=current_user.id,
+            user_id=user_session.user_id,
             activity_dto=CreateActivityDTO(**activity_data.model_dump())
         )
     except RoomNotFound as error:

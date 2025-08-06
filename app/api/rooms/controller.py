@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, Path
 from fastapi import status, Body
 from pydantic import BaseModel
 
-from app.api.auth.deps import get_authenticated_user
+from app.api.auth.deps import get_authenticated_user_session
 from app.api.response_patterns import OkResponse
 from app.api.responses import build_responses
 from app.api.rooms.exceptions import RoomNotFoundException, UserNotInRoomException, RoomNotFoundByInviteCodeException, \
@@ -31,17 +31,17 @@ router = APIRouter(route_class=SpendTimeTogetherAPIRoute)
 )
 @inject
 async def get_users_rooms_list(
-    current_user: UsersSessionDTO = Depends(get_authenticated_user),
+    user_session: UsersSessionDTO = Depends(get_authenticated_user_session),
     room_service: RoomService = Depends(Provide[DIContainer.services.room_service])
 ) -> OkResponse[list[RoomInfoSerializer]]:
     """
     Получает список комнат пользователя.
 
-    :param current_user: Аутентифицированный пользователь.
+    :param user_session: Сессия, по которой пользователь вошел.
     :param room_service: Сервис для работы с комнатами.
     :return: Список комнат пользователя.
     """
-    rooms = await room_service.get_rooms_by_user_id(current_user.id)
+    rooms = await room_service.get_rooms_by_user_id(user_session.user_id)
     return OkResponse.new(
         status_code=status.HTTP_200_OK,
         model=list[RoomInfoSerializer],
@@ -57,19 +57,19 @@ async def get_users_rooms_list(
 )
 @inject
 async def create_room(
-    current_user: UsersSessionDTO = Depends(get_authenticated_user),
+    user_session: UsersSessionDTO = Depends(get_authenticated_user_session),
     create_room_info: RoomCreateSerializer = Body(),
     room_service: RoomService = Depends(Provide[DIContainer.services.room_service])
 ) -> OkResponse[RoomInfoSerializer]:
     """
     Создает новую комнату.
 
-    :param current_user: Аутентифицированный пользователь.
+    :param user_session: Сессия, по которой пользователь вошел.
     :param room_service: Сервис для работы с комнатами.
     :return: Информация о созданной комнате.
     """
     room_dto = await room_service.create_room(
-        user_id=current_user.id,
+        user_id=user_session.user_id,
         name=create_room_info.name,
         description=create_room_info.description,
     )
@@ -94,21 +94,21 @@ async def create_room(
 @inject
 async def create_invite_code(
     room_id: int = Path(..., description="ID комнаты"),
-    current_user: UsersSessionDTO = Depends(get_authenticated_user),
+    user_session: UsersSessionDTO = Depends(get_authenticated_user_session),
     room_service: RoomService = Depends(Provide[DIContainer.services.room_service])
 ) -> OkResponse[InviteCodeSerializer]:
     """
     Создает код-приглашение для других юзеров в комнату
 
     :param room_id: id комнаты, для которой создается инвайт-код.
-    :param current_user: Аутентифицированный пользователь.
+    :param user_session: Сессия, по которой пользователь вошел.
     :param room_service: Сервис для работы с комнатами.
     :return: инвайт-код.
     """
     try:
         invite_code_dto = await room_service.create_invite_code(
             room_id=room_id,
-            user_id=current_user.id,
+            user_id=user_session.user_id,
         )
     except RoomNotFound as error:
         raise RoomNotFoundException(detail=str(error)) from error
@@ -135,21 +135,21 @@ async def create_invite_code(
 @inject
 async def activate_invite_code(
     invite_code: str = Body(..., embed=True, description="Код-приглашение для комнаты"),
-    current_user: UsersSessionDTO = Depends(get_authenticated_user),
+    user_session: UsersSessionDTO = Depends(get_authenticated_user_session),
     room_service: RoomService = Depends(Provide[DIContainer.services.room_service])
 ) -> OkResponse[RoomInfoSerializer]:
     """
     Активирует код-приглашение для комнаты.
 
     :param invite_code: Код-приглашение для комнаты.
-    :param current_user: Аутентифицированный пользователь.
+    :param user_session: Сессия, по которой пользователь вошел.
     :param room_service: Сервис для работы с комнатами.
     :return: Ответ об успешной активации кода.
     """
     try:
         room_dto = await room_service.activate_invite_code(
             invite_code=invite_code,
-            user_id=current_user.id,
+            user_id=user_session.user_id,
         )
     except RoomNotFound as error:
         raise RoomNotFoundException(detail=str(error)) from error
@@ -178,7 +178,7 @@ async def activate_invite_code(
 @inject
 async def get_room_users(
     room_id: int = Path(..., description="ID комнаты"),
-    current_user: UsersSessionDTO = Depends(get_authenticated_user),
+    user_session: UsersSessionDTO = Depends(get_authenticated_user_session),
     room_service: RoomService = Depends(Provide[DIContainer.services.room_service]),
     user_service: UserService = Depends(Provide[DIContainer.services.user_service])
 ) -> OkResponse[list[UserInfoSerializer]]:
@@ -186,13 +186,13 @@ async def get_room_users(
     Получает список пользователей в комнате.
 
     :param room_id: ID комнаты.
-    :param current_user: Аутентифицированный пользователь.
+    :param user_session: Сессия, по которой пользователь вошел.
     :param room_service: Сервис для работы с комнатами.
     :param user_service: Сервис для работы с пользователями.
     :return: Список пользователей в комнате.
     """
     try:
-        user_ids = await room_service.get_users_in_room(room_id=room_id, user_id=current_user.id)
+        user_ids = await room_service.get_users_in_room(room_id=room_id, user_id=user_session.user_id)
     except RoomNotFound as error:
         raise RoomNotFoundException(detail=str(error)) from error
     except UserNotInRoom as error:
@@ -221,19 +221,19 @@ async def get_room_users(
 @inject
 async def exit_room(
     room_id: int = Path(..., description="ID комнаты"),
-    current_user: UsersSessionDTO = Depends(get_authenticated_user),
+    user_session: UsersSessionDTO = Depends(get_authenticated_user_session),
     room_service: RoomService = Depends(Provide[DIContainer.services.room_service])
 ) -> OkResponse[BaseModel]:
     """
     Позволяет пользователю покинуть комнату.
 
     :param room_id: ID комнаты, которую пользователь хочет покинуть.
-    :param current_user: Аутентифицированный пользователь.
+    :param user_session: Сессия, по которой пользователь вошел.
     :param room_service: Сервис для работы с комнатами.
     :return: Ответ об успешном выходе из комнаты.
     """
     try:
-        await room_service.exit_room(room_id=room_id, user_id=current_user.id)
+        await room_service.exit_room(room_id=room_id, user_id=user_session.user_id)
     except RoomNotFound as error:
         raise RoomNotFoundException(detail=str(error)) from error
     except UserNotInRoom as error:

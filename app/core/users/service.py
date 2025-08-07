@@ -5,7 +5,8 @@ from dataclasses import dataclass
 from PIL import Image
 from fastapi import UploadFile
 
-from app.core.users.constants import ALLOWED_AVATAR_CONTENT_TYPES, AVATAR_MAX_SIZE_MB, AVATAR_SIZE, AVATARS_DIR
+from app.core.users.constants import ALLOWED_AVATAR_CONTENT_TYPES, AVATAR_MAX_SIZE_MB, AVATAR_SIZE, AVATARS_DIR, \
+    STATIC_ROOT
 from app.core.users.dto import UserDTO, UserUpdateDTO
 from app.core.users.exceptions import UserNotFound, AvatarTooLargeException, InvalidAvatarFormatException
 from app.core.users.repository import UserRepository
@@ -138,7 +139,9 @@ class UserService:
         if len(file_bytes) > AVATAR_MAX_SIZE_MB * 1024 * 1024:
             raise AvatarTooLargeException(detail=f"Avatar size cannot exceed {AVATAR_MAX_SIZE_MB}MB.")
 
+        await file.seek(0)
         image = Image.open(file.file)
+
         min_dim = min(image.width, image.height)
         left = (image.width - min_dim) / 2
         top = (image.height - min_dim) / 2
@@ -147,13 +150,16 @@ class UserService:
         image = image.crop((left, top, right, bottom))
         image = image.resize(AVATAR_SIZE)
 
-        os.makedirs(AVATARS_DIR, exist_ok=True)
+        absolute_avatars_dir = os.path.join(STATIC_ROOT, AVATARS_DIR)
+
+        os.makedirs(absolute_avatars_dir, exist_ok=True)
+
         unique_filename = f"{uuid.uuid4()}.png"
-        file_path = os.path.join(AVATARS_DIR, unique_filename)
+        absolute_file_path = os.path.join(absolute_avatars_dir, unique_filename)
 
-        image.save(file_path, "PNG")
+        image.save(absolute_file_path, "PNG")
 
-        avatar_url = f"/{file_path}"
+        avatar_url = f"/{AVATARS_DIR}/{unique_filename}"
         update_dto = UserUpdateDTO(avatar_url=avatar_url)
 
         return await self.update_user(user_id=user_id, update_dto=update_dto)

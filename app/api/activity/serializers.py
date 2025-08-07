@@ -11,6 +11,7 @@ class ActivitySerializer(BaseModel):
     room_id: int
     status: ActivityStatuses
     type: ActivityTypes
+    creator_user_id: int
     scheduled_at: datetime | None
     winner_user_id: int | None = None
 

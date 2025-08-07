@@ -56,6 +56,42 @@ async def get_room_activities(
     )
 
 
+@router.get(
+    "/activities/{activity_id}",
+    status_code=status.HTTP_200_OK,
+    response_model=OkResponse[ActivitySerializer],
+    responses=build_responses(
+        status_code=status.HTTP_200_OK,
+        docs_response_model=OkResponse[ActivitySerializer],
+        exceptions=(
+            RoomNotFoundException,
+            UserNotInRoomException,
+        ),
+    ),
+    summary="Получить подробную информацию об мероприятии",
+)
+@inject
+async def get_activity_by_id(
+    activity_id: int = Path(..., description="ID активности"),
+    user_session: UsersSessionDTO = Depends(get_authenticated_user_session),
+    activity_service: ActivityService = Depends(Provide[DIContainer.services.activity_service])
+):
+    try:
+        activity_dto = await activity_service.get_activity_by_id(
+            activity_id=activity_id,
+        )
+    except RoomNotFound as error:
+        raise RoomNotFoundException(detail=str(error)) from error
+    except UserNotInRoom as error:
+        raise UserNotInRoomException(detail=str(error)) from error
+
+    return OkResponse.new(
+        status_code=status.HTTP_200_OK,
+        model=ActivitySerializer,
+        data=asdict(activity_dto),
+    )
+
+
 @router.post(
     "/activities/{room_id}/create",
     status_code=status.HTTP_201_CREATED,

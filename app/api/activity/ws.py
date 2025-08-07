@@ -15,7 +15,7 @@ from fastapi import (
 from app.api.auth.deps import get_authenticated_user_for_ws
 from app.api.routing import SpendTimeTogetherAPIRoute
 from app.core.activity.constants import ActivityStatuses
-from app.core.activity.exceptions import ActivityNotFound, ActivityNotInProgress
+from app.core.activity.exceptions import ActivityNotFound, ActivityNotInProgress, UserAlreadySubmittedVariant
 from app.core.activity.service import ActivityService
 from app.core.rooms.exceptions import RoomNotFound, UserNotInRoom
 from app.core.rooms.service import RoomService
@@ -81,6 +81,60 @@ async def send_users_in_activity(activity_id: int, activity_service: ActivitySer
         logger.error(f"Ошибка при отправке списка пользователей: {str(e)}")
 
 
+async def send_activity_variants(websocket: WebSocket, activity_id: int, activity_service: ActivityService):
+    """Отправляет информацию о всех вариантах активности на клиент."""
+    try:
+        variants = await activity_service.get_activity_variants(activity_id)
+
+        variants_data = []
+        for v in variants:
+            
+            release_date_str = v.release_date.isoformat() if v.release_date else None
+
+            stores_data = []
+            if v.stores:
+                for store in v.stores:
+                    stores_data.append({
+                        "store_id": store.store_id,
+                        "store_name": store.store_name,
+                        "store_url": store.store_url
+                    })
+
+            platforms_data = []
+            if v.platforms:
+                for platform in v.platforms:
+                    platforms_data.append({
+                        "platform_id": platform.platform_id,
+                        "platform_name": platform.platform_name,
+                        "platform_slug": platform.platform_slug
+                    })
+
+            variant_data = {
+                "user_id": v.user_id,
+                "activity_id": v.activity_id,
+                "variant": v.variant,
+                "api_game_id": v.api_game_id,
+                "name": v.name,
+                "description": v.description,
+                "background_image": v.background_image,
+                "background_image_additional": v.background_image_additional,
+                "release_date": release_date_str,
+                "rating": v.rating,
+                "metacritic": v.metacritic,
+                "stores": stores_data,
+                "platforms": platforms_data
+            }
+
+            variants_data.append(variant_data)
+
+        await websocket.send_json({
+            "event": "activity_variants",
+            "variants": variants_data
+        })
+    except Exception as e:
+        logger.error(f"Ошибка при отправке вариантов активности: {str(e)}")
+
+
 @router.websocket("/ws/activity/{activity_id}")
 @inject
 async def websocket_endpoint(
@@ -129,10 +183,16 @@ async def websocket_endpoint(
             await manager.connect(websocket, activity_id)
 
             try:
-                await activity_service.join_activity(
+                user_activity, is_new_connection = await activity_service.join_activity(
                     user_id=user_info.id,
                     activity_id=activity_id
                 )
+
+                if is_new_connection:
+                    logger.info(f"Пользователь {user_info.id} впервые присоединился к активности {activity_id}")
+                else:
+                    logger.info(f"Пользователь {user_info.id} уже был подключен к активности {activity_id}, открыл дополнительную вкладку")
+
             except ActivityNotFound as error:
                 logger.error(f"Activity not found: {error}")
                 await websocket.close(code=4000, reason="Activity not found")
@@ -165,6 +225,8 @@ async def websocket_endpoint(
                 "users": users_data
             })
 
+            await send_activity_variants(websocket, activity_id, activity_service)
+
             response = {
                 "event": "connected",
                 "data": {
@@ -173,14 +235,17 @@ async def websocket_endpoint(
             }
             await manager.send_personal_message(json.dumps(response), websocket)
 
-            await manager.broadcast(json.dumps({
-                "event": "user_joined",
-                "user_id": user_info.id,
-                "username": user_info.first_name,
-                "avatar_url": user_info.avatar_url
-            }), activity_id)
+            
+            if is_new_connection:
+                await manager.broadcast(json.dumps({
+                    "event": "user_joined",
+                    "user_id": user_info.id,
+                    "username": user_info.first_name,
+                    "avatar_url": user_info.avatar_url
+                }), activity_id)
 
-            await send_users_in_activity(activity_id, activity_service)
+                
+                await send_users_in_activity(activity_id, activity_service)
 
             while True:
                 data = await websocket.receive_text()
@@ -196,21 +261,45 @@ async def websocket_endpoint(
                 elif action == "get_users":
                     await send_users_in_activity(activity_id, activity_service)
 
+                elif action == "get_variants":
+                    
+                    await send_activity_variants(websocket, activity_id, activity_service)
+
                 elif action == "start_game":
                     if user_info.id == activity.creator_user_id:
                         try:
-                            if activity_id not in activity_timers:
-                                task = asyncio.create_task(
-                                    start_variant_submission_timer(activity_id, activity_service)
-                                )
-                                activity_timers[activity_id] = task
-                                logger.info(f"Таймер для активности {activity_id} запущен")
-                            else:
-                                logger.info(f"Таймер для активности {activity_id} уже запущен")
-                        except (ActivityNotFound, ActivityNotInProgress) as e:
+                            
+                            variants = await activity_service.get_activity_variants(activity_id)
+                            if len(variants) < 2:
+                                await websocket.send_json({
+                                    "event": "error",
+                                    "message": "Для начала игры нужно минимум 2 варианта"
+                                })
+                                continue
+
+                            
+                            await activity_service.update_activity_status(
+                                activity_id=activity_id,
+                                status=ActivityStatuses.IN_PROGRESS
+                            )
+
+                            
+                            await manager.broadcast(
+                                json.dumps({
+                                    "event": "activity_state_changed",
+                                    "status": ActivityStatuses.IN_PROGRESS
+                                }),
+                                activity_id
+                            )
+
+                            
+                            asyncio.create_task(start_roulette(activity_id, activity_service))
+
+                        except Exception as e:
+                            logger.error(f"Ошибка при запуске игры: {str(e)}")
                             await websocket.send_json({
                                 "event": "error",
-                                "message": str(e)
+                                "message": f"Ошибка при запуске игры: {str(e)}"
                             })
                     else:
                         await websocket.send_json({
@@ -219,25 +308,52 @@ async def websocket_endpoint(
                         })
 
                 elif action == "submit_variant":
-                    variant = payload.get("variant")
-                    if variant:
+                    variant_data = payload.get("variant")
+                    if variant_data:
                         try:
+                            
+                            activity = await activity_service.get_activity_by_id(activity_id)
+                            if activity.status == ActivityStatuses.IN_PROGRESS:
+                                await websocket.send_json({
+                                    "event": "error",
+                                    "message": "Нельзя предлагать варианты после начала игры"
+                                })
+                                continue
+
+                            
+                            variants = await activity_service.get_activity_variants(activity_id)
+                            user_already_submitted = any(v.user_id == user_info.id for v in variants)
+
+                            if user_already_submitted:
+                                await websocket.send_json({
+                                    "event": "error",
+                                    "message": "Вы уже предложили вариант для этой активности"
+                                })
+                                continue
+
                             await activity_service.submit_variant(
                                 user_id=user_info.id,
                                 activity_id=activity_id,
-                                variant=variant,
+                                variant_data=variant_data,
                             )
                             await manager.broadcast(
                                 json.dumps({
                                     "event": "variant_submitted",
                                     "user_id": user_info.id,
-                                    "variant": variant,
+                                    "variant": variant_data.get("name", ""),
                                     "username": user_info.first_name,
-                                    "avatar_url": user_info.avatar_url
+                                    "avatar_url": user_info.avatar_url,
+                                    "game_image": variant_data.get("background_image", ""),
+                                    "metacritic": variant_data.get("metacritic")
                                 }),
                                 activity_id
                             )
                         except (ActivityNotFound, ActivityNotInProgress) as e:
+                            await websocket.send_json({
+                                "event": "error",
+                                "message": str(e)
+                            })
+                        except UserAlreadySubmittedVariant as e:
                             await websocket.send_json({
                                 "event": "error",
                                 "message": str(e)
@@ -252,18 +368,24 @@ async def websocket_endpoint(
         manager.disconnect(websocket, activity_id)
         if 'user_info' in locals() and user_info and activity_id in manager.active_connections:
             try:
-                await activity_service.exit_activity(user_id=user_info.id, activity_id=activity_id)
-                logger.info(f"Пользователь {user_info.id} удален из активности {activity_id}")
+                
+                was_removed = await activity_service.exit_activity(user_id=user_info.id, activity_id=activity_id)
+
+                if was_removed:
+                    
+                    logger.info(f"Пользователь {user_info.id} полностью покинул активность {activity_id}")
+                    await manager.broadcast(json.dumps({
+                        "event": "user_left",
+                        "user_id": user_info.id,
+                        "username": user_info.first_name
+                    }), activity_id)
+
+                    await send_users_in_activity(activity_id, activity_service)
+                else:
+                    logger.info(f"Пользователь {user_info.id} закрыл одно из подключений к активности {activity_id}, но остался в активности")
             except Exception as e:
-                logger.error(f"Ошибка при удалении пользователя из активности: {str(e)}")
+                logger.error(f"Ошибка при обработке отключения пользователя: {str(e)}")
 
-            await manager.broadcast(json.dumps({
-                "event": "user_left",
-                "user_id": user_info.id,
-                "username": user_info.first_name
-            }), activity_id)
-
-            await send_users_in_activity(activity_id, activity_service)
     except Exception as e:
         logger.error(f"Ошибка в WebSocket обработчике: {str(e)}")
         await websocket.close(code=4000, reason=str(e))
@@ -276,34 +398,26 @@ async def websocket_endpoint(
                     del activity_timers[activity_id]
 
 
-async def start_variant_submission_timer(activity_id: int, activity_service: ActivityService):
-    """Запускает таймер на 60 секунд для сбора вариантов."""
-    logger.info(f"Начало таймера для активности {activity_id}")
-    await manager.broadcast(json.dumps({"event": "timer_started", "duration": 60}), activity_id)
-
-    await asyncio.sleep(60)
-    logger.info(f"Таймер для активности {activity_id} завершен")
-    await manager.broadcast(json.dumps({"event": "timer_finished"}), activity_id)
-
-    await start_roulette(activity_id, activity_service)
-
-    if activity_id in activity_timers:
-        del activity_timers[activity_id]
-
-
 async def start_roulette(activity_id: int, activity_service: ActivityService):
     """Запускает рулетку для выбора победителя на сервере."""
     logger.info(f"Запуск рулетки для активности {activity_id}")
 
     variants_dto = await activity_service.get_activity_variants(activity_id)
 
-    if not variants_dto:
-        logger.warning(f"Нет вариантов для активности {activity_id}, рулетка отменена")
+    if not variants_dto or len(variants_dto) < 2:
+        logger.warning(f"Недостаточно вариантов для активности {activity_id}, рулетка отменена")
         await manager.broadcast(
-            json.dumps({"event": "roulette_cancelled", "reason": "No variants submitted"}),
+            json.dumps({
+                "event": "roulette_cancelled",
+                "reason": "Необходимо минимум 2 варианта для запуска рулетки"
+            }),
             activity_id
         )
-        # TODO: Обновить статус активности на CANCELLED
+        
+        await activity_service.update_activity_status(
+            activity_id=activity_id,
+            status=ActivityStatuses.PLANNED
+        )
         return
 
     variants = [v for v in variants_dto]
@@ -317,6 +431,7 @@ async def start_roulette(activity_id: int, activity_service: ActivityService):
         activity_id
     )
 
+    
     while len(variants) > 1:
         await asyncio.sleep(3)
         eliminated = variants.pop()

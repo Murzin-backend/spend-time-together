@@ -1,7 +1,8 @@
 from dataclasses import dataclass
+from typing import Tuple
 
 from app.core.activity.constants import ActivityStatuses
-from app.core.activity.dto import ActivityDTO, CreateActivityDTO, UserActivityVariantDTO
+from app.core.activity.dto import ActivityDTO, CreateActivityDTO, UserActivityVariantDTO, GameStoreDTO, GamePlatformDTO
 from app.core.activity.exceptions import ActivityNotFound, ActivityNotInProgress, UserAlreadySubmittedVariant
 from app.core.activity.models import UserActivity, UserActivityVariants
 from app.core.activity.repository import ActivityRepository
@@ -78,7 +79,14 @@ class ActivityService:
             creator_user_id=created_activity.creator_user_id
         )
 
-    async def join_activity(self, user_id: int, activity_id: int) -> UserActivity:
+    async def join_activity(self, user_id: int, activity_id: int) -> Tuple[UserActivity, bool]:
+        """
+        Присоединяет пользователя к активности или увеличивает счетчик подключений.
+
+        Возвращает кортеж (UserActivity, is_new_connection), где:
+        - UserActivity - объект пользовательской активности
+        - is_new_connection - True, если это первое подключение пользователя, False если он уже был подключен
+        """
         activity = await self.activity_repository.get_activity_by_id(activity_id)
         if not activity:
             raise ActivityNotFound(activity_id=activity_id)
@@ -88,16 +96,21 @@ class ActivityService:
             activity_id=activity_id
         )
 
-    async def exit_activity(self, user_id: int, activity_id: int) -> None:
+    async def exit_activity(self, user_id: int, activity_id: int) -> bool:
+        """
+        Уменьшает счетчик подключений пользователя к активности.
+        Возвращает True, если пользователь полностью покинул активность (счетчик достиг 0).
+        """
         activity = await self.activity_repository.get_activity_by_id(activity_id)
         if not activity:
             raise ActivityNotFound(activity_id=activity_id)
 
-        users_activity = await self.activity_repository.get_users_by_activity_id(activity_id=activity_id)
-        if not any(ua.user_id == user_id for ua in users_activity):
-            raise UserAlreadySubmittedVariant(activity_id=activity_id, user_id=user_id)
+        was_deleted = await self.activity_repository.decrease_user_connections_count(
+            user_id=user_id,
+            activity_id=activity_id
+        )
 
-        await self.activity_repository.remove_user_from_activity(user_id=user_id, activity_id=activity_id)
+        return was_deleted
 
     async def get_users_in_activity(self, activity_id: int) -> list[UserDTO]:
         activity = await self.activity_repository.get_activity_by_id(activity_id)
@@ -108,33 +121,87 @@ class ActivityService:
         return await self.user_service.get_users_by_ids(user_ids=[ua.user_id for ua in users_activity])
 
 
-    async def submit_variant(self, user_id: int, activity_id: int, variant: str) -> UserActivityVariants:
-        activity = await self.activity_repository.get_activity_by_id(activity_id)
+    async def submit_variant(self, user_id: int, activity_id: int, variant_data: dict) -> UserActivityVariants:
+        activity = await self.activity_repository.get_activity_by_id(activity_id=activity_id)
         if not activity:
             raise ActivityNotFound(activity_id=activity_id)
 
-        if activity.status != ActivityStatuses.IN_PROGRESS:
+        if activity.status == ActivityStatuses.IN_PROGRESS or activity.status == ActivityStatuses.FINISHED:
             raise ActivityNotInProgress(activity_id=activity_id)
 
         existing_variants = await self.get_activity_variants(activity_id)
         if any(v.user_id == user_id for v in existing_variants):
             raise UserAlreadySubmittedVariant(activity_id=activity_id, user_id=user_id)
 
+        variant = variant_data.get("name", "")
+        api_game_id = variant_data.get("id", 0)
+        name = variant_data.get("name", "")
+        description = variant_data.get("description", "")
+        background_image = variant_data.get("background_image", "")
+        background_image_additional = variant_data.get("background_image_additional", "")
+        release_date = variant_data.get("released")
+        rating = variant_data.get("rating")
+        metacritic = variant_data.get("metacritic")
+
+        stores_data = variant_data.get("stores", [])
+        platforms_data = variant_data.get("platforms", [])
+
         return await self.activity_repository.add_user_variant(
             user_id=user_id,
             activity_id=activity_id,
-            variant=variant
+            variant=variant,
+            api_game_id=api_game_id,
+            name=name,
+            description=description,
+            background_image=background_image,
+            background_image_additional=background_image_additional,
+            release_date=release_date,
+            rating=rating,
+            metacritic=metacritic,
+            stores_data=stores_data,
+            platforms_data=platforms_data
         )
 
     async def get_activity_variants(self, activity_id: int) -> list[UserActivityVariantDTO]:
-        variants = await self.activity_repository.get_variants_by_activity_id(activity_id=activity_id)
-        return [
-            UserActivityVariantDTO(
-                user_id=v.user_id,
-                activity_id=v.activity_id,
-                variant=v.variant
-            ) for v in variants
-        ]
+        variants_with_related = await self.activity_repository.get_variants_with_related_by_activity_id(activity_id=activity_id)
+
+        result = []
+        for variant, stores, platforms in variants_with_related:
+            stores_dto = [
+                GameStoreDTO(
+                    store_id=store.store_id,
+                    store_name=store.store_name,
+                    store_url=store.store_url
+                ) for store in stores
+            ]
+
+            platforms_dto = [
+                GamePlatformDTO(
+                    platform_id=platform.platform_id,
+                    platform_name=platform.platform_name,
+                    platform_slug=platform.platform_slug
+                ) for platform in platforms
+            ]
+
+            result.append(
+                UserActivityVariantDTO(
+                    user_id=variant.user_id,
+                    activity_id=variant.activity_id,
+                    variant=variant.variant,
+                    api_game_id=variant.api_game_id,
+                    name=variant.name,
+                    description=variant.description,
+                    background_image=variant.background_image,
+                    background_image_additional=variant.background_image_additional,
+                    release_date=variant.release_date,
+                    rating=variant.rating,
+                    metacritic=variant.metacritic,
+                    stores=stores_dto,
+                    platforms=platforms_dto
+                )
+            )
+
+        return result
 
     async def finalize_activity(self, activity_id: int, winner_user_id: int):
         await self.activity_repository.update_activity_winner_and_status(
@@ -142,3 +209,6 @@ class ActivityService:
             winner_user_id=winner_user_id,
             status=ActivityStatuses.FINISHED
         )
+
+    async def update_activity_status(self, activity_id: int, status: ActivityStatuses):
+        await self.activity_repository.update_activity_status(activity_id=activity_id, status=status)

@@ -1,3 +1,4 @@
+import logging
 import os
 import uuid
 from dataclasses import dataclass
@@ -10,7 +11,8 @@ from app.core.users.constants import ALLOWED_AVATAR_CONTENT_TYPES, AVATAR_MAX_SI
 from app.core.users.dto import UserDTO, UserUpdateDTO
 from app.core.users.exceptions import UserNotFound, AvatarTooLargeException, InvalidAvatarFormatException
 from app.core.users.repository import UserRepository
-from app.main import logger
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass

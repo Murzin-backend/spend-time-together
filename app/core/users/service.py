@@ -10,6 +10,7 @@ from app.core.users.constants import ALLOWED_AVATAR_CONTENT_TYPES, AVATAR_MAX_SI
 from app.core.users.dto import UserDTO, UserUpdateDTO
 from app.core.users.exceptions import UserNotFound, AvatarTooLargeException, InvalidAvatarFormatException
 from app.core.users.repository import UserRepository
+from app.main import logger
 
 
 @dataclass
@@ -157,7 +158,13 @@ class UserService:
         unique_filename = f"{uuid.uuid4()}.png"
         absolute_file_path = os.path.join(absolute_avatars_dir, unique_filename)
 
-        image.save(absolute_file_path, "PNG")
+        logger.info(f"Attempting to save avatar to: {absolute_file_path}")
+        try:
+            image.save(absolute_file_path, "PNG")
+            logger.info(f"Successfully saved avatar to: {absolute_file_path}")
+        except Exception as e:
+            logger.error(f"Failed to save avatar to {absolute_file_path}. Error: {e}")
+            raise
 
         avatar_url = f"/{AVATARS_DIR}/{unique_filename}"
         update_dto = UserUpdateDTO(avatar_url=avatar_url)

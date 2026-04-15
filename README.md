@@ -95,6 +95,31 @@ docker-compose down
 ```
 
 
+## Локальное развёртывание (фронтенд + бэкенд)
+
+Для полноценного тестирования нужно запустить оба сервиса:
+
+### 1. Бэкенд
+
+```bash
+cd spend-time-together
+cp .env.example .env
+docker-compose up --build -d
+```
+
+Бэкенд будет доступен на `http://localhost:8000`, Swagger — на `http://localhost:8000/docs`.
+
+### 2. Фронтенд
+
+```bash
+cd spend-time-together-frontend
+docker-compose -f docker-compose.dev.yml up --build -d
+```
+
+Фронтенд будет доступен на `http://localhost:3000` и будет обращаться к локальному бэкенду.
+
+> **Важно:** `docker-compose.dev.yml` передаёт `REACT_APP_API_URL=http://localhost:8000/api` при сборке. Продакшн `docker-compose.yml` использует `https://spend-time-together.ru/api`.
+
 ## Структура проекта
 
 ```

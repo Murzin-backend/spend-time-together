@@ -54,6 +54,9 @@ class UserActivityVariantDTO:
     metacritic: int | None =  None
     stores: List[GameStoreDTO] | None =  None
     platforms: List[GamePlatformDTO] | None =  None
+    user_first_name: str | None = None
+    user_last_name: str | None = None
+    user_avatar_url: str | None = None
 
     def __post_init__(self):
         if self.stores is None:

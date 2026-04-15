@@ -9,3 +9,7 @@ class Settings(BaseSettings):
     )
 
     DATABASE_URL: str
+
+    COOKIE_SECURE: bool = False
+    COOKIE_DOMAIN: str | None = None
+    COOKIE_MAX_AGE: int = 2592000  # 30 days

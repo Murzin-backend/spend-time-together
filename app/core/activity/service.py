@@ -166,7 +166,7 @@ class ActivityService:
         variants_with_related = await self.activity_repository.get_variants_with_related_by_activity_id(activity_id=activity_id)
 
         result = []
-        for variant, stores, platforms in variants_with_related:
+        for variant, stores, platforms, user in variants_with_related:
             stores_dto = [
                 GameStoreDTO(
                     store_id=store.store_id,
@@ -197,7 +197,10 @@ class ActivityService:
                     rating=variant.rating,
                     metacritic=variant.metacritic,
                     stores=stores_dto,
-                    platforms=platforms_dto
+                    platforms=platforms_dto,
+                    user_first_name=user.first_name if user else None,
+                    user_last_name=user.last_name if user else None,
+                    user_avatar_url=user.avatar_url if user else None,
                 )
             )
 

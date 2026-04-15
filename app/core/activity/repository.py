@@ -10,6 +10,7 @@ from app.core.activity.dto import ActivityDTO, CreateActivityDTO
 from app.core.activity.models import Activity
 from app.core.activity.models import UserActivity, UserActivityVariants, GameStore, GamePlatform
 from app.core.mixins import BaseRepository
+from app.core.users.models import Users
 
 
 @dataclass
@@ -229,17 +230,19 @@ class ActivityRepository(BaseRepository):
     async def get_variants_with_related_by_activity_id(
         self,
         activity_id: int
-    ) -> List[Tuple[UserActivityVariants, List[GameStore], List[GamePlatform]]]:
-        """Получает варианты с связанными магазинами и платформами."""
+    ) -> List[Tuple[UserActivityVariants, List[GameStore], List[GamePlatform], Optional[Users]]]:
+        """Получает варианты с связанными магазинами, платформами и информацией о пользователе."""
         async with self.db.session() as session:
-            variants_query = select(UserActivityVariants).where(
-                UserActivityVariants.activity_id == activity_id
+            variants_query = (
+                select(UserActivityVariants, Users)
+                .outerjoin(Users, UserActivityVariants.user_id == Users.id)
+                .where(UserActivityVariants.activity_id == activity_id)
             )
             result = await session.execute(variants_query)
-            variants = result.scalars().all()
+            variants_with_users = result.all()
 
             result_list = []
-            for variant in variants:
+            for variant, user in variants_with_users:
                 stores_query = select(GameStore).where(GameStore.variant_id == variant.id)
                 stores_result = await session.execute(stores_query)
                 stores = stores_result.scalars().all()
@@ -248,7 +251,7 @@ class ActivityRepository(BaseRepository):
                 platforms_result = await session.execute(platforms_query)
                 platforms = platforms_result.scalars().all()
 
-                result_list.append((variant, stores, platforms))
+                result_list.append((variant, stores, platforms, user))
 
             return result_list
 

@@ -49,3 +49,15 @@ class AuthUserRegistrationResponseSerializer(BaseModel):
     class Config:
         from_attributes = True
 
+
+class AuthMeResponseSerializer(BaseModel):
+    id: int = Field(..., title="ID пользователя")
+    login: str = Field(..., title="Логин пользователя")
+    email: str = Field(..., title="Email")
+    first_name: str = Field(..., title="Имя")
+    last_name: str | None = Field(default=None, title="Фамилия")
+    avatar_url: str | None = Field(default=None, title="URL аватара")
+
+    class Config:
+        from_attributes = True
+
